@@ -14,12 +14,19 @@ def raw2jpg(source, save_path):
 
     with rawpy.imread(source) as raw:
         thumb = raw.extract_thumb()
-        # save image
+        # # save image
         # imageio.imsave(target, im)
         if thumb.format == rawpy.ThumbFormat.JPEG:
             with open(thumbLocation, 'wb') as f:
                 f.write(thumb.data)
 
+        image = Image.open(thumbLocation)
+        image.getexif()
+        exif = image._getexif()
+        # get shot time
+        # shot_time = exif[36867]
+        print(exif[306])
+        print(raw.metadata)
     return thumbLocation
 
 

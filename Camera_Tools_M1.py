@@ -17,8 +17,7 @@ import time
 import shutil
 import concurrent.futures as cf
 from alive_progress import alive_bar  # pip install alive_progress
-import rawkit
-import imageio
+import rawpy # pip install rawpy
 
 sources = {
     "Zfc" : ['/Volumes/NIKON Z FC /DCIM'], # Nikon Zfc
@@ -88,12 +87,11 @@ def process_jpg(file_location, tag):
         print(file_location + " will be copied.")
     else:
         print("File " + file + " already exists. Skip!")
-        # delete file_location
-        # try:
-        #     os.remove(file_location)
-        # except:
-        #     print("File " + file + " cannot be deleted.")
-        # pass
+        try:
+            os.remove(file_location)
+        except:
+            print("File " + file + " cannot be deleted.")
+        pass
 
 def process_raw(file_location, tag):
 
@@ -118,11 +116,11 @@ def process_raw(file_location, tag):
         Day_Max = int(DAY)
 
     destination_path = LIBRARY_PATH + "/Day " + DAY + "/" + "Raw"
-    destination_path_Edited = LIBRARY_PATH + "/Day " + DAY + "/Edited"
+    # destination_path_Edited = LIBRARY_PATH + "/Day " + DAY + "/Edited"
 
 
-    if not os.path.exists(destination_path_Edited):
-        os.makedirs(destination_path_Edited)
+    # if not os.path.exists(destination_path_Edited):
+    #     os.makedirs(destination_path_Edited)
     if not os.path.exists(destination_path):
         os.makedirs(destination_path)
 
@@ -132,11 +130,11 @@ def process_raw(file_location, tag):
         print(file_location + " will be copied.")
     else:
         print("File " + file + " already exists. Skip!")
-        # try:
-        #     os.remove(file_location)
-        # except:
-        #     print("File " + file + " cannot be deleted.")
-        # pass
+        try:
+            os.remove(file_location)
+        except:
+            print("File " + file + " cannot be deleted.")
+        pass
 
 def process_video(file_location, tag):
     time_start = date_to_unix(START_DATE + ' 23:59:59')
@@ -163,11 +161,11 @@ def process_video(file_location, tag):
         print(file_location + " will be copied.")
     else:
         print("File " + file + " already exists. Skip!")
-        # try:
-        #     os.remove(file_location)
-        # except:
-        #     print("File " + file + " cannot be deleted.")
-        # pass
+        try:
+            os.remove(file_location)
+        except:
+            print("File " + file + " cannot be deleted.")
+        pass
 
 def process_other(file_location, tag):
     time_start = date_to_unix(START_DATE + ' 23:59:59')
@@ -194,6 +192,10 @@ def process_other(file_location, tag):
         print(file_location + " will be copied.")
     else:
         print("File " + file + " already exists. Skip!")
+        try:
+            os.remove(file_location)
+        except:
+            print("File " + file + " cannot be deleted.")
         pass
 
 def scan_folder(search_path):
@@ -302,8 +304,62 @@ def process_edited_jpg(path, file):
     return file_info
 
 def process_Lr_raw(file_location):
-    print("Test Success, Path is ", file_location)
-    pass
+    global Day_Max
+    time_start = date_to_unix('2022-02-10 23:59:59')
+
+    # print("Test Success, Path is ", file_location)
+    file = os.path.basename(file_location)
+    path = os.path.dirname(file_location)
+    this_file_name = file.split(".")[0]
+    this_file_type = file.split(".")[1]
+
+    thumbLocation = path + "/" + this_file_name + ".thumb.jpg"
+    xmp_file = path + "/" + this_file_name + ".xmp"
+
+    with rawpy.imread(file_location) as raw:
+        thumb = raw.extract_thumb()
+        # save image
+        # imageio.imsave(target, im)
+        if thumb.format == rawpy.ThumbFormat.JPEG:
+            with open(thumbLocation, 'wb') as f:
+                f.write(thumb.data)
+    # time.sleep(1)
+    exif = Image.open(thumbLocation)._getexif()
+
+    # SONY Only!!!
+    shot_date = exif[306]
+
+    create_date = time.strftime("%Y-%m-%d", time.strptime(shot_date, "%Y:%m:%d %H:%M:%S")) + " 23:59:59"
+    file_creation_date = date_to_unix(create_date)
+    days = (file_creation_date - time_start) / 86400
+    days = round(days)
+    if days > Day_Max:
+        Day_Max = days
+    # print(file + " is " + str(days) + " days old")
+    DAY = str(days)
+
+    destination_path = LIBRARY_PATH + "/Day " + DAY + "/" + "Raw"
+    destination_path_Edited = LIBRARY_PATH + "/Day " + DAY + "/Edited"
+    destination_path_XMP = LIBRARY_PATH + "/Day " + DAY + "/XMP"
+
+    if not os.path.exists(destination_path_Edited):
+        os.makedirs(destination_path_Edited)
+    if not os.path.exists(destination_path):
+        os.makedirs(destination_path)
+    if not os.path.exists(destination_path_XMP):
+        os.makedirs(destination_path_XMP)
+
+    destination_file = destination_path + "/" + file
+    destination_file_xmp = destination_path_XMP + "/" + file + ".xmp"
+    if not os.path.exists(destination_file):
+        # change the creation date of the file file_location to this unix timestamp file_creation_date
+        # os.utime(file_location, (file_creation_date, file_creation_date))
+        move_action(file_location, destination_file)
+        move_action(xmp_file, destination_file_xmp)
+    else:
+        print("File " + file + " already exists. Skip!")
+    # delete thumb file
+    os.remove(thumbLocation)
 
 # main function
 if __name__ == '__main__':
@@ -348,6 +404,7 @@ if __name__ == '__main__':
             if file.endswith(".jpg"):
                 info = process_edited_jpg(EDITED_PATH, file)
                 slim_infos.append(info)
+
         for file in scan_folder(LR_RAW_PATH):
             this_file_name = file.split(".")[0]
             this_file_type = file.split(".")[1]
